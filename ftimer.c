@@ -1,5 +1,6 @@
 /*
  * ftimer.c - Estimate the time (in seconds) used by a function f 
+ * ftimer.c - 함수 f의 사용 시간(초)을 추정하는 라이브러리
  * 
  * Copyright (c) 2002, R. Bryant and D. O'Hallaron, All rights reserved.
  * May not be used, modified, or copied without permission.
@@ -13,12 +14,15 @@
 #include "ftimer.h"
 
 /* function prototypes */
+/* 함수 프로토타입 */
 static void init_etime(void);
 static double get_etime(void);
 
 /* 
  * ftimer_itimer - Use the interval timer to estimate the running time
  * of f(argp). Return the average of n runs.  
+ * ftimer_itimer - interval timer를 사용하여 f(argp)의 실행 시간을 추정합니다.
+ * n번 실행한 후의 평균 값을 반환합니다.
  */
 double ftimer_itimer(ftimer_test_funct f, void *argp, int n)
 {
@@ -35,7 +39,9 @@ double ftimer_itimer(ftimer_test_funct f, void *argp, int n)
 
 /* 
  * ftimer_gettod - Use gettimeofday to estimate the running time of
- * f(argp). Return the average of n runs.  
+ * f(argp). Return the average of n runs. 
+ * ftimer_gettod - gettimeofday를 사용하여 f(argp)의 실행 시간을 추정합니다.
+ * n번 실행한 후의 평균 값을 반환합니다.
  */
 double ftimer_gettod(ftimer_test_funct f, void *argp, int n)
 {
@@ -55,12 +61,15 @@ double ftimer_gettod(ftimer_test_funct f, void *argp, int n)
 
 /*
  * Routines for manipulating the Unix interval timer
+ * Unix interval timer를 다루기 위한 함수들
  */
 
 /* The initial value of the interval timer */
+/* interval timer의 초기값 */
 #define MAX_ETIME 86400   
 
 /* static variables that hold the initial value of the interval timer */
+/* interval timer의 초기값을 저장할 static 변수들 */
 static struct itimerval first_u; /* user time */
 static struct itimerval first_r; /* real time */
 static struct itimerval first_p; /* prof time*/
@@ -100,7 +109,4 @@ static double get_etime(void) {
     return (double) ((first_p.it_value.tv_sec - r_curr.it_value.tv_sec) +
 		     (first_p.it_value.tv_usec - r_curr.it_value.tv_usec)*1e-6);
 }
-
-
-
 
