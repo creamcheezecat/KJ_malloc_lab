@@ -374,6 +374,7 @@ static void *coalesce(void *bp)
  * mm_realloc - Implemented simply in terms of mm_malloc and mm_free
  * mm_realloc - 단순히 mm_malloc과 mm_free를 이용해 구현됩니다.
  */
+
 void *mm_realloc(void *bp, size_t size)
 {
     void *oldptr = bp;
@@ -437,13 +438,10 @@ static void *find_fit(size_t asize)
 {
     void *bp;
 
-    // 힙의 첫 번째 블록 주소부터 순회
-    /*가용리스트 내부의 유일한 할당 블록은 맨 뒤의 프롤로그 블록이므로 
-    할당 블록을 만나면 for문을 종료한다.*/
+    // 가용 블록 리스트에서 블록 크기가 asize 이상인 첫 번째 블록을 찾음
     for(bp = free_listp; GET_ALLOC(HDRP(bp)) != 1; bp = SUCC_FREEP(bp)){
-        // 할당되어 있지 않고, asize보다 크거나 같은 블록을 찾음
         if((asize <= GET_SIZE(HDRP(bp)))){
-            return bp; // 블록 주소 반환
+            return bp;     // 찾은 블록의 주소 반환
         }
     }
 
