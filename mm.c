@@ -296,21 +296,26 @@ static void *coalesce(void *bp)
     size_t next_alloc = GET_ALLOC(HDRP(NEXT_BLKP(bp)));
     size_t size = GET_SIZE(HDRP(bp));  
 
-    //이미 가용리스트에 존재하던 블록은 연결하기 이전에 가용리스트에서 제거해준다.
+    // 이전 블록이 할당 블록이고, 다음 블록이 가용 블록인 경우
     if (prev_alloc && !next_alloc){
+        // 다음 블록을 가용 리스트에서 제거하고, 블록 크기를 합친다
         removeBlock(NEXT_BLKP(bp));
         size += GET_SIZE(HDRP(NEXT_BLKP(bp)));
         PUT(HDRP(bp), PACK(size, 0));
         PUT(FTRP(bp), PACK(size, 0));
     }
+    // 이전 블록이 가용 블록이고, 다음 블록이 할당 블록인 경우
     else if (!prev_alloc && next_alloc){
+        // 이전 블록을 가용 리스트에서 제거하고, 블록 크기를 합친다
         removeBlock(PREV_BLKP(bp));
         size += GET_SIZE(HDRP(PREV_BLKP(bp)));
         PUT(FTRP(bp), PACK(size, 0));
         PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));
         bp = PREV_BLKP(bp);
     }
+    // 이전 블록과 다음 블록이 모두 가용 블록인 경우
     else if (!prev_alloc && !next_alloc){
+        // 이전 블록과 다음 블록을 가용 리스트에서 제거하고, 블록 크기를 합친다
         removeBlock(PREV_BLKP(bp));
         removeBlock(NEXT_BLKP(bp));
         size += GET_SIZE(FTRP(NEXT_BLKP(bp))) + GET_SIZE(HDRP(PREV_BLKP(bp)));
@@ -320,7 +325,6 @@ static void *coalesce(void *bp)
     }
     //연결된 블록을 가용리스트에 추가
     putFreeBlock(bp);
-
 
     /* 
     // 이전과 다음 블록이 모두 할당되어 있다.
@@ -348,6 +352,7 @@ static void *coalesce(void *bp)
         bp = PREV_BLKP(bp);
     } 
     */
+    
     return bp;
 }
 
