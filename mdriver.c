@@ -23,6 +23,7 @@
 
 /**********************
  * Constants and macros
+ * 상수 및 매크로
  **********************/
 
 /* Misc */
@@ -30,72 +31,86 @@
 #define HDRLINES       4 /* number of header lines in a trace file */
 #define LINENUM(i) (i+5) /* cnvt trace request nums to linenums (origin 1) */
 
-/* Returns true if p is ALIGNMENT-byte aligned */
+/* Returns true if p is ALIGNMENT-byte aligned 
+p가 ALIGNMENT바이트로 정렬되었는지 여부를 반환하는 매크로*/
 #define IS_ALIGNED(p)  ((((unsigned int)(p)) % ALIGNMENT) == 0)
 
 /****************************** 
- * The key compound data types 
+ * The key compound data types
+ * 주요 복합 데이터 타입
  *****************************/
 
 /* Records the extent of each block's payload */
+/* 각 블록의 페이로드 범위를 기록 */
 typedef struct range_t {
-    char *lo;              /* low payload address */
-    char *hi;              /* high payload address */
+    char *lo;              /* low payload address *//* 페이로드의 하위 주소 */
+    char *hi;              /* high payload address *//* 페이로드의 상위 주소 */
     struct range_t *next;  /* next list element */
 } range_t;
 
-/* Characterizes a single trace operation (allocator request) */
+/* Characterizes a single trace operation (allocator request) 
+단일 추적 동작(할당자 요청)을 특성화*/
 typedef struct {
-    enum {ALLOC, FREE, REALLOC} type; /* type of request */
-    int index;                        /* index for free() to use later */
-    int size;                         /* byte size of alloc/realloc request */
+    enum {ALLOC, FREE, REALLOC} type; /* type of request */ /*요청 타입*/
+    int index;                        /* index for free() to use later */ /*나중에 free()에서 사용할 인덱스*/
+    int size;                         /* byte size of alloc/realloc request */ /*할당 / 재할당 요청의 바이트 크기*/
 } traceop_t;
 
-/* Holds the information for one trace file*/
+/* Holds the information for one trace file
+하나의 추적 파일 정보를 보유*/
 typedef struct {
-    int sugg_heapsize;   /* suggested heap size (unused) */
-    int num_ids;         /* number of alloc/realloc ids */
-    int num_ops;         /* number of distinct requests */
-    int weight;          /* weight for this trace (unused) */
-    traceop_t *ops;      /* array of requests */
-    char **blocks;       /* array of ptrs returned by malloc/realloc... */
-    size_t *block_sizes; /* ... and a corresponding array of payload sizes */
+    int sugg_heapsize;   /* suggested heap size (unused) */ /*제안 된 힙 크기(사용되지 않음)*/
+    int num_ids;         /* number of alloc/realloc ids */ /* 할당 / 재할당 ID 수*/
+    int num_ops;         /* number of distinct requests */ /*서로 다른 요청 수 */
+    int weight;          /* weight for this trace (unused) */ /*이 추적에 대한 가중치(사용되지 않음) */
+    traceop_t *ops;      /* array of requests */ /*요청의 배열*/
+    char **blocks;       /* array of ptrs returned by malloc/realloc... */ /*malloc / realloc에 의해 반환 된 포인터의 배열*/
+    size_t *block_sizes; /* ... and a corresponding array of payload sizes */ /*... 및 해당 페이로드 크기의 배열 */
 } trace_t;
 
 /* 
  * Holds the params to the xxx_speed functions, which are timed by fcyc. 
  * This struct is necessary because fcyc accepts only a pointer array
  * as input.
+ * fcyc에 의해 타이밍되는 xxx_speed 함수에 대한 매개 변수를 보유하는 구조체.
+ * 이 구조체가 필요한 이유는 fcyc가 입력으로 포인터 배열만 허용하기 때문입니다.
  */
 typedef struct {
     trace_t *trace;  
     range_t *ranges;
 } speed_t;
 
-/* Summarizes the important stats for some malloc function on some trace */
+/* Summarizes the important stats for some malloc function on some trace 
+일부 malloc 함수에 대한 중요한 통계 정보를 요약*/
 typedef struct {
-    /* defined for both libc malloc and student malloc package (mm.c) */
-    double ops;      /* number of ops (malloc/free/realloc) in the trace */
-    int valid;       /* was the trace processed correctly by the allocator? */
-    double secs;     /* number of secs needed to run the trace */
+    /* defined for both libc malloc and student malloc package (mm.c) 
+	 libc malloc과 student malloc 패키지 모두에 대해 정의됨 */ 
+    double ops;      /* number of ops (malloc/free/realloc) in the trace */ /*추적에서의 작업(할당 / 해제 / 재할당) 수*/
+    int valid;       /* was the trace processed correctly by the allocator? */ /* 할당자에 의해 추적이 올바르게 처리되었는가? */
+    double secs;     /* number of secs needed to run the trace */ /*추적 실행에 필요한 초 수*/
 
-    /* defined only for the student malloc package */
-    double util;     /* space utilization for this trace (always 0 for libc) */
+    /* defined only for the student malloc package 
+	student malloc 패키지에만 정의됨 */
+    double util;     /* space utilization for this trace (always 0 for libc) */ /* 이 추적에 대한 공간 활용도 (libc에 대해서는 항상 0) */
 
     /* Note: secs and util are only defined if valid is true */
+	/* secs와 util은 valid가 true일 때만 정의됩니다 */
 } stats_t; 
 
 /********************
  * Global variables
+ * 전역 변수
  *******************/
-int verbose = 0;        /* global flag for verbose output */
-static int errors = 0;  /* number of errs found when running student malloc */
-char msg[MAXLINE];      /* for whenever we need to compose an error message */
+int verbose = 0;        /* global flag for verbose output */ /* verbose 출력을 위한 전역 플래그 */
+static int errors = 0;  /* number of errs found when running student malloc */ /* student malloc을 실행할 때 발견된 오류 수 */
+char msg[MAXLINE];      /* for whenever we need to compose an error message */ /* 오류 메시지를 작성해야 할 때 사용할 문자열 버퍼 */
 
-/* Directory where default tracefiles are found */
+/* Directory where default tracefiles are found
+기본 추적 파일이 있는 디렉토리 */
 static char tracedir[MAXLINE] = TRACEDIR;
 
-/* The filenames of the default tracefiles */
+/* The filenames of the default tracefiles
+기본 추적 파일의 파일 이름 */
 static char *default_tracefiles[] = {  
     DEFAULT_TRACEFILES, NULL
 };
@@ -103,15 +118,18 @@ static char *default_tracefiles[] = {
 
 /********************* 
  * Function prototypes 
+ * 함수 프로토 타입
  *********************/
 
-/* these functions manipulate range lists */
+/* these functions manipulate range lists 
+이러한 함수는 범위 목록을 조작합니다 */
 static int add_range(range_t **ranges, char *lo, int size, 
 		     int tracenum, int opnum);
 static void remove_range(range_t **ranges, char *lo);
 static void clear_ranges(range_t **ranges);
 
-/* These functions read, allocate, and free storage for traces */
+/* These functions read, allocate, and free storage for traces 
+이러한 함수는 추적을 읽고, 할당하고, 해제합니다 */
 static trace_t *read_trace(char *tracedir, char *filename);
 static void free_trace(trace_t *trace);
 

@@ -33,13 +33,25 @@ Makefile
 Other support files for the driver
 **********************************
 
-config.h	Configures the malloc lab driver | malloc lab 드라이버 구성
-fsecs.{c,h}	Wrapper function for the different timer packages | 다른 타이머 패키지를 위한 래퍼 함수
+config.h	Configures the malloc lab driver  
+malloc lab 드라이버 구성
+
+fsecs.{c,h}	Wrapper function for the different timer packages 
+다른 타이머 패키지를 위한 래퍼 함수
+
 Wrapper = 다른 함수나 모듈의 기능을 추가하거나, 변경하거나, 특정한 목적에 맞게 사용하기 위한 인터페이스 역할
-clock.{c,h}	Routines for accessing the Pentium and Alpha cycle counters | Pentium 및 Alpha 사이클 카운터에 대한 루틴
-fcyc.{c,h}	Timer functions based on cycle counters | 사이클 카운터를 기반으로한 타이머 함수
-ftimer.{c,h}	Timer functions based on interval timers and gettimeofday() | 간격 타이머 및 gettimeofday() 기반 타이머 함수
-memlib.{c,h}	Models the heap and sbrk function | 힙과 sbrk 함수를 모델링합니다.
+
+clock.{c,h}	Routines for accessing the Pentium and Alpha cycle counters
+Pentium 및 Alpha 사이클 카운터에 대한 루틴
+
+fcyc.{c,h}	Timer functions based on cycle counters
+사이클 카운터를 기반으로한 타이머 함수
+
+ftimer.{c,h}	Timer functions based on interval timers and gettimeofday() 
+간격 타이머 및 gettimeofday() 기반 타이머 함수
+
+memlib.{c,h}	Models the heap and sbrk function 
+힙과 sbrk 함수를 모델링합니다.
 
 *******************************
 Building and running the driver
