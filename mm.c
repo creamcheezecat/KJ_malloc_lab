@@ -50,7 +50,6 @@ team_t team = {
 #define ALIGNMENT 8
 
 /* rounds up to the nearest multiple of ALIGNMENT */
-/* ALIGNMENT에 대한 최대 공약수(Greatest Common Divisor) 계산 */
 #define ALIGN(size) (((size) + (ALIGNMENT-1)) & ~0x7)
 
 #define SIZE_T_SIZE (ALIGN(sizeof(size_t)))
@@ -98,12 +97,25 @@ p는 대개 (void*) 이므로 직접적으로 역참조가 불가능 하다
 #define HDRP(bp)        ((char *)(bp) - WSIZE)
 /*주어진 블록 포인터 bp에 대해, 해당 블록의 풋터의 주소를 계산*/
 #define FTRP(bp)        ((char *)(bp) + GET_SIZE(HDRP(bp)) - DSIZE)
-
+/*주어진 블록 포인터 bp에 대해, 해당 블록의 이전 블록 주소를 계산*/
+#define PRED(bp)        ((char *)(bp))
+/*주어진 블록 포인터 bp에 대해, 해당 블록의 다음 블록 주소를 계산*/
+#define SUCC(bp)        ((char *)(bp) + WSIZE)
 /*주어진 블록 포인터(bp)를 이용하여 다음 블록의 주소를 계산*/
 #define NEXT_BLKP(bp)   ((char *)(bp) + GET_SIZE(((char *)(bp) - WSIZE)))
 /*주어진 블록 포인터(bp)를 이용하여 이전 블록의 주소를 계산*/
 #define PREV_BLKP(bp)   ((char *)(bp) - GET_SIZE(((char *)(bp) - DSIZE)))
 
+// 블록 최소 크기인 2**4부터 최대 크기인 2**32를 위한 리스트 29개
+#define LIST_NUM 29
+// 분리 가용 리스트 생성
+void *seg_list[LIST_NUM];
+
+void delete_block(char* bp);
+
+void add_free_block(char* bp);
+
+int get_seg_list_num(size_t size);
 /* 
 heap_listp 변수는 포인터 변수로, 할당된 힙 메모리 블록의 시작 주소를 가리켜야 합니다. 
 따라서, void* 자료형을 사용하여 선언하는 것이 적절합니다.
@@ -134,10 +146,9 @@ static void *extend_heap(size_t words)
 {
     char * bp;
     size_t size;
-    /*요청한 크기를 인접 2워드의 배수로 반올림하며, 
-    그 후에 메모리 시스템으로부터 추가적인 힙 공간을 요청*/
+
     /*정렬을 유지하기 위해 단어 수를 짝수로 할당*/
-    size = (words % 2) ? (words + 1) * WSIZE : words * WSIZE;
+    size = (words % 2) ? (words + 1) * DSIZE : words * DSIZE;
     if((long)(bp = mem_sbrk(size)) == -1){
         return NULL;
     }
@@ -160,11 +171,10 @@ static void *extend_heap(size_t words)
 int mm_init(void)
 {
     /* 최초 가용 블록으로 힙 생성 */
-    /* 
-    초기 빈 힙을 생성합니다 
-    메모리 시스템(mem_sbrk)에서 4 워드를 가져와서 
-    빈 가용 리스트를 만들 수 있도록 초기화 한다
-    */
+    for(int i = 0; i < LIST_NUM ; i++){
+        seg_list[i] = NULL;
+    }
+
     if ((heap_listp = mem_sbrk(4 * WSIZE))==(void*)-1){
         return -1;
     }
@@ -173,7 +183,6 @@ int mm_init(void)
     PUT(heap_listp + (1 * WSIZE), PACK(DSIZE,1));   /* Prologue header */
     PUT(heap_listp + (2 * WSIZE), PACK(DSIZE,1));   /* Prologue footer */
     PUT(heap_listp + (3 * WSIZE), PACK(0,1));       /* Epilogue header */
-    heap_listp += (2 * WSIZE);
 
     /*빈 힙에 CHUNKSIZE 바이트의 빈 블록을 추가*/
     if(extend_heap(CHUNKSIZE/WSIZE)== NULL){
@@ -253,53 +262,56 @@ void *mm_malloc(size_t size)
     */
 }
 
-/*
-1. 먼저 힙의 첫 번째 블록부터 시작하여 마지막 블록까지 순회합니다.
-2. 각 블록을 검사하여 할당되어 있지 않고, 
-    요청한 크기(asize)보다 크거나 같은 블록을 찾습니다.
-3. 적절한 크기의 블록을 찾으면 해당 블록의 주소를 반환하고, 
-    찾지 못한 경우 NULL을 반환합니다.
-*/
 /* 동적 메모리 할당 시 메모리 블록을 찾는 함수 */
 static void *find_fit(size_t asize)
 {
-    void *bp;
-    // 힙의 첫 번째 블록 주소부터 순회
-    for(bp = heap_listp; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp)){
-        // 할당되어 있지 않고, asize보다 크거나 같은 블록을 찾음
-        if(!GET_ALLOC(HDRP(bp)) && (asize <= GET_SIZE(HDRP(bp)))){
-            return bp; // 블록 주소 반환
+    void *search_p;
+    //asize가 들어갈 수 있는 seg_list 찾기
+    int i = get_seg_list_num(asize);
+    
+    //리스트 내부의 블록들 중 가장 작은 블록 할당(best-fit)
+    void *tmp = NULL;
+    // 모든 seg_list에서 검색합니다.
+    while (i < LIST_NUM){  
+        for (search_p = seg_list[i]; search_p != NULL; search_p = GET(SUCC(search_p))){
+            if (GET_SIZE(HDRP(search_p)) >= asize){// 요청한 크기(asize) 이상인 블록을 찾습니다.
+                if (tmp == NULL){// 처음으로 찾은 블록이라면, tmp 변수에 할당합니다.
+                    tmp = search_p;
+                }/*이미 찾은 블록(tmp)이 있다면, 
+                이번에 찾은 블록(search_p)과 비교하여 더 작은 블록을 tmp에 할당합니다.*/
+                else {
+                    if (GET_SIZE(tmp) > GET_SIZE(HDRP(search_p))){
+                        tmp = search_p;
+                    }
+                }
+            }
+        }// 찾은 블록이 있다면, 해당 블록을 리턴합니다.
+        if (tmp != NULL){
+            return tmp;
         }
+        i ++;
     }
-    return NULL; // 적절한 크기의 블록을 찾지 못한 경우 NULL 반환
+
+    return NULL;
 }
 
-/*
-1. 할당 대상 블록의 현재 크기를 csize에 저장합니다.
-2. 할당 요청한 크기(asize)와 현재 블록의 크기(csize)를 비교합니다.
-3. 남은 공간이 최소 블록 크기보다 크다면 분할 가능한 상황입니다. 
-    할당 요청한 크기만큼 할당하고, 남은 공간에 새로운 블록 헤더와 풋터를 추가합니다.
-4. 남은 공간이 최소 블록 크기보다 작아서 분할이 불가능한 상황입니다. 
-    할당 대상 블록을 전체 할당합니다.
-*/
 /* 가용 블록 중에서 요청한 크기(asize)에 따라 적절한 크기의 블록을 할당하는 함수 */
 static void place(void *bp, size_t asize)
 {
-    // 할당 대상 블록의 현재 크기
-    size_t csize = GET_SIZE(HDRP(bp));
-
-    // 남은 공간이 최소 블록 크기보다 크다면 분할 가능
-    if((csize - asize) >= (2*DSIZE)){
-        PUT(HDRP(bp), PACK(asize, 1));  // 할당 요청한 크기만큼 할당
-        PUT(FTRP(bp), PACK(asize, 1));  // 할당 요청한 크기만큼 할당
-        bp = NEXT_BLKP(bp); // bp를 다음 블록으로 이동
-        PUT(HDRP(bp),PACK(csize - asize, 0)); // 남은 공간에 새로운 블록 헤더 추가
-        PUT(FTRP(bp),PACK(csize - asize, 0)); // 남은 공간에 새로운 블록 풋터 추가
+   delete_block(bp);
+    size_t old_size = GET_SIZE(HDRP(bp));
+    if (old_size >= asize + (2 * DSIZE)){
+        PUT(HDRP(bp), PACK(asize, 1));
+        PUT(FTRP(bp), PACK(asize, 1));
+        
+        PUT(HDRP(NEXT_BLKP(bp)), PACK((old_size - asize), 0));
+        PUT(FTRP(NEXT_BLKP(bp)), PACK((old_size - asize), 0));
+        
+        coalesce(NEXT_BLKP(bp));
     }
-    // 남은 공간이 최소 블록 크기보다 작아서 분할 불가능
-    else{
-        PUT(HDRP(bp),PACK(csize, 1)); // 할당 대상 블록을 전체 할당
-        PUT(FTRP(bp),PACK(csize, 1)); // 할당 대상 블록을 전체 할당
+    else {
+        PUT(HDRP(bp), PACK(old_size, 1));
+        PUT(FTRP(bp), PACK(old_size, 1));
     }
 }
 
@@ -325,30 +337,31 @@ static void *coalesce(void *bp)
     size_t next_alloc = GET_ALLOC(HDRP(NEXT_BLKP(bp)));
     size_t size = GET_SIZE(HDRP(bp));
 
-    // 이전과 다음 블록이 모두 할당되어 있다.
-    if(prev_alloc && next_alloc){
-        return bp;
-    }
-    // 이전 블록은 할당 된 상태, 다음 블록은 가용상태 이다.
-    else if(prev_alloc && !next_alloc){
+    if (prev_alloc && !next_alloc) {
         size += GET_SIZE(HDRP(NEXT_BLKP(bp)));
+        
+        delete_block(NEXT_BLKP(bp));
         PUT(HDRP(bp), PACK(size, 0));
         PUT(FTRP(bp), PACK(size, 0));
     }
-    // 이전 블록은 가용상태, 다음 블록은 할당 상태이다.
-    else if(!prev_alloc && next_alloc){
+    else if (!prev_alloc && next_alloc) {
         size += GET_SIZE(HDRP(PREV_BLKP(bp)));
+
+        delete_block(PREV_BLKP(bp));
         PUT(FTRP(bp), PACK(size, 0));
         PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));
         bp = PREV_BLKP(bp);
     }
-    // 이전 블록과 다음 블록 모두 가용상태이다.
-    else{
-        size += GET_SIZE(HDRP(PREV_BLKP(bp))) + GET_SIZE(FTRP(NEXT_BLKP(bp)));
-        PUT(FTRP(NEXT_BLKP(bp)), PACK(size, 0));
+    else if (!prev_alloc && !next_alloc){
+        size += GET_SIZE(HDRP(NEXT_BLKP(bp))) + GET_SIZE(HDRP(PREV_BLKP(bp)));
+
+        delete_block(PREV_BLKP(bp));
+        delete_block(NEXT_BLKP(bp));
         PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));
+        PUT(FTRP(NEXT_BLKP(bp)), PACK(size, 0));
         bp = PREV_BLKP(bp);
     }
+    add_free_block(bp);
     return bp;
 }
 
@@ -418,4 +431,68 @@ void *mm_realloc(void *bp, size_t size)
     mm_free(oldptr);
     return newptr;
     */
+}
+/* free list에서 블록 포인터 bp를 삭제하는 함수 */
+void delete_block(char* bp)
+{ 
+    // 블록이 들어가야 하는 seg_list 찾기
+    int seg_list_num = get_seg_list_num(GET_SIZE(HDRP(bp)));
+    // bp가 첫 번째 블록일 경우
+    if (GET(PRED(bp)) == NULL){
+        // bp 다음 블록이 없는 경우
+        if (GET(SUCC(bp)) == NULL){
+            // 해당 리스트의 첫 번째 블록을 NULL로 설정
+            seg_list[seg_list_num] = NULL;
+        } else {
+            // 다음 블록의 이전 블록을 NULL로 설정
+            PUT(PRED(GET(SUCC(bp))), NULL);
+            // 해당 리스트의 첫 번째 블록을 다음 블록으로 설정
+            seg_list[seg_list_num] = GET(SUCC(bp));
+        }
+    }
+    // bp가 첫 번째 블록이 아닌 경우
+    else {
+        // bp 다음 블록이 없는 경우
+        if (GET(SUCC(bp)) == NULL){
+            // 이전 블록의 다음 블록을 NULL로 설정
+            PUT(SUCC(GET(PRED(bp))), NULL);
+        } else {
+            // 다음 블록의 이전 블록을 bp의 이전 블록으로 설정
+            PUT(PRED(GET(SUCC(bp))), GET(PRED(bp)));
+            // 이전 블록의 다음 블록을 bp의 다음 블록으로 설정
+            PUT(SUCC(GET(PRED(bp))), GET(SUCC(bp)));
+        }
+    }
+}
+/* free list에 블록 포인터 bp를 추가하는 함수 */
+void add_free_block(char* bp)
+{
+    //들어가야 하는 seg_list 찾고 그 seg_list에 추가
+    int seg_list_num = get_seg_list_num(GET_SIZE(HDRP(bp)));
+    // 해당 seg_list가 비어있는 경우
+    if (seg_list[seg_list_num] == NULL){
+        // bp의 이전 블록을 NULL로 설정
+        PUT(PRED(bp), NULL);
+        PUT(SUCC(bp), NULL);
+    } else {
+        // bp의 이전 블록을 NULL로 설정
+        PUT(PRED(bp), NULL);
+        // bp의 다음 블록을 해당 seg_list의 첫 번째 블록으로 설정
+        PUT(SUCC(bp), seg_list[seg_list_num]);
+        // 해당 seg_list의 첫 번째 블록의 이전 블록을 bp로 설정
+        PUT(PRED(seg_list[seg_list_num]), bp);
+    }
+    // 해당 seg_list의 첫 번째 블록을 bp로 설정
+    seg_list[seg_list_num] = bp;
+}
+/* size에 맞는 seg_list의 인덱스를 반환하는 함수 */
+int get_seg_list_num(size_t size)
+{
+    //seg_list[0]은 블록의 최소 크기인 2**4를 위한 리스트 
+    int i = -4;
+    while (size != 1){
+        size = (size >> 1);
+        i ++;
+    }
+    return i;
 }
