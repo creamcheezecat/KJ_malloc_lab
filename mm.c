@@ -117,7 +117,7 @@ void removeBlock(void *bp);
 void putFreeBlock(void *bp);
 
  // 가용리스트의 첫번째 블록을 가리키는 포인터
-static char *free_listp;
+static void *free_listp;
 /* 
 heap_listp 변수는 포인터 변수로, 할당된 힙 메모리 블록의 시작 주소를 가리켜야 합니다. 
 따라서, void* 자료형을 사용하여 선언하는 것이 적절합니다.
@@ -135,7 +135,7 @@ find_fit()함수에서 힙을 불러와야하는데 find_fit()을 사용하는 m
 책에서는 프롤로그와 에필로그 블록들은 연결과정 동안에 가장자리 조건을 없애주기 위한 속임수로 
 할당기는 한개의 정적(static) 전역변수를 사용하며 이것은 항상 프롤로그 블록을 가르킨다
  */
-static char *heap_listp;
+static void *heap_listp;
 
 static void *extend_heap(size_t words);
 static void *find_fit(size_t asize);
@@ -173,8 +173,8 @@ int mm_init(void)
     지금 생성한 프롤로그 블록은 항상 가용리스트의 끝에 위치하게 된다 */
     free_listp = heap_listp + DSIZE; // free_listp 초기화
 
-    /*빈 힙에 CHUNKSIZE 바이트의 빈 블록을 추가*/ // WSIZE -> DISZE 변경
-    if(extend_heap(CHUNKSIZE/WSIZE)== NULL){
+    /*빈 힙에 CHUNKSIZE 바이트의 빈 블록을 추가*/ // WSIZE -> DISZE 변경 하면 2점오름
+    if(extend_heap(CHUNKSIZE/DSIZE)== NULL){
         return -1;
     }
 
@@ -189,7 +189,7 @@ static void *extend_heap(size_t words)
     /*요청한 크기를 인접 2워드의 배수로 반올림하며, 
     그 후에 메모리 시스템으로부터 추가적인 힙 공간을 요청*/
     /*정렬을 유지하기 위해 words 수를 짝수로 할당*/
-    size = (words % 2) ? (words + 1) * WSIZE : words * WSIZE;
+    size = (words % 2) ? (words + 1) * DSIZE : words * DSIZE; // WSIZE -> DSIZE 로 바꾸면 2점 오름
     if((long)(bp = mem_sbrk(size)) == -1){
         return NULL;
     }
@@ -255,8 +255,8 @@ void *mm_malloc(size_t size)
     요청한 블록을 이 새 가용 블록에 배치하고, 필요한 경우에 블록을 분할하며(place 함수 부분),
     이후에 새롭게 할당한 블록의 포인터를 리턴한다.
     */
-    extendsize = MAX(asize,CHUNKSIZE);
-    if ((bp = extend_heap(extendsize/WSIZE)) == NULL){ 
+    extendsize = MAX(asize,CHUNKSIZE); 
+    if ((bp = extend_heap(extendsize/DSIZE)) == NULL){ // WIZE -> DSIZE 변경 하면 2점 오름
         return NULL;
     }
     place(bp,asize);
@@ -375,7 +375,7 @@ void *mm_realloc(void *bp, size_t size)
     void *newptr;
     size_t copySize;
 
-    /* 
+    
     //size가 0이면 free와 같음
     if(size == 0){
         mm_free(bp);
@@ -386,7 +386,7 @@ void *mm_realloc(void *bp, size_t size)
     if(bp == NULL){
         return mm_malloc(size);
     } 
-    */
+    
 
     newptr = mm_malloc(size);
 
