@@ -440,7 +440,7 @@ static void remove_range(range_t **ranges, char *lo)
     for (p = *ranges;  p != NULL; p = p->next) {
         if (p->lo == lo) {
 	    *prevpp = p->next;
-            size = p->hi - p->lo + 1;
+            //size = p->hi - p->lo + 1;
             free(p);
             break;
         }

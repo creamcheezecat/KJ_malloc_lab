@@ -273,7 +273,7 @@ static void *find_fit(size_t asize)
     void *tmp = NULL;
     // 모든 seg_list에서 검색합니다.
     while (i < LIST_NUM){  
-        for (search_p = seg_list[i]; search_p != NULL; search_p = GET(SUCC(search_p))){
+        for (search_p = seg_list[i]; search_p != NULL; search_p = (void*)GET(SUCC(search_p))){
             if (GET_SIZE(HDRP(search_p)) >= asize){// 요청한 크기(asize) 이상인 블록을 찾습니다.
                 if (tmp == NULL){// 처음으로 찾은 블록이라면, tmp 변수에 할당합니다.
                     tmp = search_p;
@@ -438,24 +438,24 @@ void delete_block(char* bp)
     // 블록이 들어가야 하는 seg_list 찾기
     int seg_list_num = get_seg_list_num(GET_SIZE(HDRP(bp)));
     // bp가 첫 번째 블록일 경우
-    if (GET(PRED(bp)) == NULL){
+    if (GET(PRED(bp)) == (unsigned int)NULL){
         // bp 다음 블록이 없는 경우
-        if (GET(SUCC(bp)) == NULL){
+        if (GET(SUCC(bp)) == (unsigned int)NULL){
             // 해당 리스트의 첫 번째 블록을 NULL로 설정
             seg_list[seg_list_num] = NULL;
         } else {
             // 다음 블록의 이전 블록을 NULL로 설정
-            PUT(PRED(GET(SUCC(bp))), NULL);
+            PUT(PRED(GET(SUCC(bp))), (unsigned int)NULL);
             // 해당 리스트의 첫 번째 블록을 다음 블록으로 설정
-            seg_list[seg_list_num] = GET(SUCC(bp));
+            seg_list[seg_list_num] = (void *)GET(SUCC(bp));
         }
     }
     // bp가 첫 번째 블록이 아닌 경우
     else {
         // bp 다음 블록이 없는 경우
-        if (GET(SUCC(bp)) == NULL){
+        if (GET(SUCC(bp)) == (unsigned int)NULL){
             // 이전 블록의 다음 블록을 NULL로 설정
-            PUT(SUCC(GET(PRED(bp))), NULL);
+            PUT(SUCC(GET(PRED(bp))), (unsigned int)NULL);
         } else {
             // 다음 블록의 이전 블록을 bp의 이전 블록으로 설정
             PUT(PRED(GET(SUCC(bp))), GET(PRED(bp)));
@@ -472,11 +472,11 @@ void add_free_block(char* bp)
     // 해당 seg_list가 비어있는 경우
     if (seg_list[seg_list_num] == NULL){
         // bp의 이전 블록을 NULL로 설정
-        PUT(PRED(bp), NULL);
-        PUT(SUCC(bp), NULL);
+        PUT(PRED(bp), (unsigned int)NULL);
+        PUT(SUCC(bp), (unsigned int)NULL);
     } else {
         // bp의 이전 블록을 NULL로 설정
-        PUT(PRED(bp), NULL);
+        PUT(PRED(bp), (unsigned int)NULL);
         // bp의 다음 블록을 해당 seg_list의 첫 번째 블록으로 설정
         PUT(SUCC(bp), seg_list[seg_list_num]);
         // 해당 seg_list의 첫 번째 블록의 이전 블록을 bp로 설정
