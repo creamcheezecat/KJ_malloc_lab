@@ -185,7 +185,7 @@ int mm_init(void)
     PUT(heap_listp + (3 * WSIZE), PACK(0,1));       /* Epilogue header */
 
     /*빈 힙에 CHUNKSIZE 바이트의 빈 블록을 추가*/
-    if(extend_heap(CHUNKSIZE/WSIZE)== NULL){
+    if(extend_heap(CHUNKSIZE/DSIZE)== NULL){
         return -1;
     }
 
@@ -244,7 +244,7 @@ void *mm_malloc(size_t size)
     이후에 새롭게 할당한 블록의 포인터를 리턴한다.
     */
     extendsize = MAX(asize,CHUNKSIZE);
-    if ((bp = extend_heap(extendsize/WSIZE)) == NULL){
+    if ((bp = extend_heap(extendsize/DSIZE)) == NULL){
         return NULL;
     }
     place(bp,asize);
