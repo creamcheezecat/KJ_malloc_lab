@@ -122,7 +122,7 @@ find_fit()함수에서 힙을 불러와야하는데 find_fit()을 사용하는 m
 할당기는 한개의 정적(static) 전역변수를 사용하며 이것은 항상 프롤로그 블록을 가르킨다
  */
 static void *heap_listp;
-
+static char *last_bp;
 static void *extend_heap(size_t words);
 static void *find_fit(size_t asize);
 static void place(void *bp, size_t asize);
@@ -179,7 +179,8 @@ int mm_init(void)
     if(extend_heap(CHUNKSIZE/WSIZE)== NULL){
         return -1;
     }
-
+    // heap_listp는 void였기 때문에 last_bp에 맞게 char형으로 변환
+    last_bp = (char *)heap_listp; 
     return 0;
 }
 
@@ -253,25 +254,32 @@ void *mm_malloc(size_t size)
     */
 }
 
-/*
-1. 먼저 힙의 첫 번째 블록부터 시작하여 마지막 블록까지 순회합니다.
-2. 각 블록을 검사하여 할당되어 있지 않고, 
-    요청한 크기(asize)보다 크거나 같은 블록을 찾습니다.
-3. 적절한 크기의 블록을 찾으면 해당 블록의 주소를 반환하고, 
-    찾지 못한 경우 NULL을 반환합니다.
+/* 
+동적 메모리 할당 시 메모리 블록을 찾는 함수 
+next_fit 방법을 이용(최근에 할당된 블록을 기준으로 다음 블록 검색)
 */
-/* 동적 메모리 할당 시 메모리 블록을 찾는 함수 */
 static void *find_fit(size_t asize)
 {
-    void *bp;
-    // 힙의 첫 번째 블록 주소부터 순회
-    for(bp = heap_listp; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp)){
-        // 할당되어 있지 않고, asize보다 크거나 같은 블록을 찾음
-        if(!GET_ALLOC(HDRP(bp)) && (asize <= GET_SIZE(HDRP(bp)))){
-            return bp; // 블록 주소 반환
+    char *bp = last_bp;
+    // 최근에 할당된 블록을 기준으로 다음 블록 검색
+    for (bp = NEXT_BLKP(bp); GET_SIZE(HDRP(bp)) != 0; bp = NEXT_BLKP(bp)) {
+        if (!GET_ALLOC(HDRP(bp)) && GET_SIZE(HDRP(bp)) >= asize) {
+            last_bp = bp;
+            return bp;
         }
     }
-    return NULL; // 적절한 크기의 블록을 찾지 못한 경우 NULL 반환
+    // 메모리 블록의 처음부터 마지막 할당된 블록까지 검색
+    bp = heap_listp;
+
+    while (bp < last_bp) {
+        bp = NEXT_BLKP(bp);
+        if (!GET_ALLOC(HDRP(bp)) && GET_SIZE(HDRP(bp)) >= asize) {
+            last_bp = bp;
+            return bp;
+        }
+    }
+
+    return NULL;
 }
 
 /*
@@ -327,6 +335,7 @@ static void *coalesce(void *bp)
 
     // 이전과 다음 블록이 모두 할당되어 있다.
     if(prev_alloc && next_alloc){
+        last_bp = bp;
         return bp;
     }
     // 이전 블록은 할당 된 상태, 다음 블록은 가용상태 이다.
@@ -349,6 +358,7 @@ static void *coalesce(void *bp)
         PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));
         bp = PREV_BLKP(bp);
     }
+    last_bp = bp;
     return bp;
 }
 
