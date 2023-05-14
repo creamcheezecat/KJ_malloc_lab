@@ -14,7 +14,7 @@
 typedef void (*test_funct)(void *);
 
 /* Compute number of cycles used by test function f */
-/* 테스트 함수 f에 의해 사용되는 사이클 수를 계산합니다. /
+/* 테스트 함수 f에 의해 사용되는 사이클 수를 계산합니다. */
 double fcyc(test_funct f, void* argp);
 
 /*********************************************************
