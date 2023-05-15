@@ -118,23 +118,7 @@ void putFreeBlock(void *bp);
 
  // 가용리스트의 첫번째 블록을 가리키는 포인터
 static void *free_listp;
-/* 
-heap_listp 변수는 포인터 변수로, 할당된 힙 메모리 블록의 시작 주소를 가리켜야 합니다. 
-따라서, void* 자료형을 사용하여 선언하는 것이 적절합니다.
-
-void* 자료형은 어떤 타입의 주소도 가리킬 수 있는 범용 포인터이기 때문에 
-heap_listp 변수가 가리키는 메모리 블록이 어떤 타입인지에 대해서는 신경쓰지 않아도 됩니다. 
-따라서 heap_listp 변수를 void* 자료형으로 선언하여
-포인터가 가리키는 메모리 블록의 주소를 저장하도록 하는 것이 좋습니다.
-
-전역 변수로 사용 해야하는 이유
-find_fit()함수에서 힙을 불러와야하는데 find_fit()을 사용하는 mm_malloc()에서 힙을 안 갖고있기때문에
-인자로 넘겨 받을 수가 없다. mm_malloc()은 할당해야하는 사이즈만 인자로 가지고 있다.
-
-위 이유는 그냥 갖다 붙이는 이유고 
-책에서는 프롤로그와 에필로그 블록들은 연결과정 동안에 가장자리 조건을 없애주기 위한 속임수로 
-할당기는 한개의 정적(static) 전역변수를 사용하며 이것은 항상 프롤로그 블록을 가르킨다
- */
+/* ---------------  */
 static void *heap_listp;
 
 static void *extend_heap(size_t words);
@@ -209,7 +193,6 @@ size 바이트의 메모리 블록을 요청할떄 추가적인 요청들을 체
 할당기는 요청한 블록 크기를 조절해서 헤더와 풋터를 위한 공간을 확보하고,
  더블 워드 요건을 만족시킨다. 
  */
-
 /* 
  * mm_malloc - Allocate a block by incrementing the brk pointer.
  *     Always allocate a block whose size is a multiple of the alignment.
@@ -261,17 +244,7 @@ void *mm_malloc(size_t size)
     }
     place(bp,asize);
     return bp;
-    /* 
-    // 기본으로 주어지는 코드 
-    int newsize = ALIGN(size + SIZE_T_SIZE);
-    void *p = mem_sbrk(newsize);
-    if (p == (void *)-1)
-	return NULL;
-    else {
-        *(size_t *)p = size;
-        return (void *)((char *)p + SIZE_T_SIZE);
-    }
-    */
+
 }
 
 /*
@@ -325,33 +298,6 @@ static void *coalesce(void *bp)
     }
     //연결된 블록을 가용리스트에 추가
     putFreeBlock(bp);
-
-    /* 
-    // 이전과 다음 블록이 모두 할당되어 있다.
-    if(prev_alloc && next_alloc){
-        return bp;
-    }
-    // 이전 블록은 할당 된 상태, 다음 블록은 가용상태 이다.
-    else if(prev_alloc && !next_alloc){
-        size += GET_SIZE(HDRP(NEXT_BLKP(bp)));
-        PUT(HDRP(bp), PACK(size, 0));
-        PUT(FTRP(bp), PACK(size, 0));
-    }
-    // 이전 블록은 가용상태, 다음 블록은 할당 상태이다.
-    else if(!prev_alloc && next_alloc){
-        size += GET_SIZE(HDRP(PREV_BLKP(bp)));
-        PUT(FTRP(bp), PACK(size, 0));
-        PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));
-        bp = PREV_BLKP(bp);
-    }
-    // 이전 블록과 다음 블록 모두 가용상태이다.
-    else{
-        size += GET_SIZE(HDRP(PREV_BLKP(bp))) + GET_SIZE(FTRP(NEXT_BLKP(bp)));
-        PUT(FTRP(NEXT_BLKP(bp)), PACK(size, 0));
-        PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));
-        bp = PREV_BLKP(bp);
-    } 
-    */
     
     return bp;
 }
@@ -374,7 +320,6 @@ static void *coalesce(void *bp)
  * mm_realloc - Implemented simply in terms of mm_malloc and mm_free
  * mm_realloc - 단순히 mm_malloc과 mm_free를 이용해 구현됩니다.
  */
-
 void *mm_realloc(void *bp, size_t size)
 {
     void *oldptr = bp;
@@ -411,19 +356,6 @@ void *mm_realloc(void *bp, size_t size)
     mm_free(oldptr);
     // 새로운 블록 주소 반환
     return newptr;
-
-    /*
-    // 기본으로 주어지는 코드
-    newptr = mm_malloc(size);
-    if (newptr == NULL)
-      return NULL;
-    copySize = *(size_t *)((char *)oldptr - SIZE_T_SIZE);
-    if (size < copySize)
-      copySize = size;
-    memcpy(newptr, oldptr, copySize);
-    mm_free(oldptr);
-    return newptr;
-    */
 }
 
 /*
