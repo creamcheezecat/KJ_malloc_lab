@@ -377,15 +377,6 @@ static void *find_fit(size_t asize)
         }
     }
 
-    /* 
-    // 힙의 첫 번째 블록 주소부터 순회
-    for(bp = heap_listp; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp)){
-        // 할당되어 있지 않고, asize보다 크거나 같은 블록을 찾음
-        if(!GET_ALLOC(HDRP(bp)) && (asize <= GET_SIZE(HDRP(bp)))){
-            return bp; // 블록 주소 반환
-        }
-    }
-    */
     return NULL; // 적절한 크기의 블록을 찾지 못한 경우 NULL 반환
 }
 
