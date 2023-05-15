@@ -120,7 +120,7 @@ static void *extend_heap(size_t words)
     /*요청한 크기를 인접 2워드의 배수로 반올림하며, 
     그 후에 메모리 시스템으로부터 추가적인 힙 공간을 요청*/
     /*정렬을 유지하기 위해 단어 수를 짝수로 할당*/
-    size = (words % 2) ? (words + 1) * WSIZE : words * WSIZE;
+    size = (words % 2) ? (words + 1) * DSIZE : words * DSIZE;
     if((long)(bp = mem_sbrk(size)) == -1){
         return NULL;
     }
@@ -159,7 +159,7 @@ int mm_init(void)
     heap_listp += (2 * WSIZE);
 
     /*빈 힙에 CHUNKSIZE 바이트의 빈 블록을 추가*/
-    if(extend_heap(CHUNKSIZE/WSIZE)== NULL){
+    if(extend_heap(CHUNKSIZE/DSIZE)== NULL){
         return -1;
     }
 
@@ -217,7 +217,7 @@ void *mm_malloc(size_t size)
     이후에 새롭게 할당한 블록의 포인터를 리턴한다.
     */
     extendsize = MAX(asize,CHUNKSIZE);
-    if ((bp = extend_heap(extendsize/WSIZE)) == NULL){
+    if ((bp = extend_heap(extendsize/DSIZE)) == NULL){
         return NULL;
     }
     place(bp,asize);
