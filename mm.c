@@ -106,33 +106,16 @@ p는 대개 (void*) 이므로 직접적으로 역참조가 불가능 하다
 /*주어진 블록 포인터(bp)를 이용하여 이전 블록의 주소를 계산*/
 #define PREV_BLKP(bp)   ((char *)(bp) - GET_SIZE(((char *)(bp) - DSIZE)))
 
-// 블록 최소 크기인 2**4부터 최대 크기인 2**32를 위한 리스트 29개
-#define LIST_NUM 29
+// 블록 최소 크기인 2**4부터 
+#define LIST_NUM 32
 // 분리 가용 리스트 생성
 void *seg_list[LIST_NUM];
-
 void delete_block(char* bp);
-
 void add_free_block(char* bp);
-
 int get_seg_list_num(size_t size);
-/* 
-heap_listp 변수는 포인터 변수로, 할당된 힙 메모리 블록의 시작 주소를 가리켜야 합니다. 
-따라서, void* 자료형을 사용하여 선언하는 것이 적절합니다.
 
-void* 자료형은 어떤 타입의 주소도 가리킬 수 있는 범용 포인터이기 때문에 
-heap_listp 변수가 가리키는 메모리 블록이 어떤 타입인지에 대해서는 신경쓰지 않아도 됩니다. 
-따라서 heap_listp 변수를 void* 자료형으로 선언하여
-포인터가 가리키는 메모리 블록의 주소를 저장하도록 하는 것이 좋습니다.
+/*    ----------------              */
 
-전역 변수로 사용 해야하는 이유
-find_fit()함수에서 힙을 불러와야하는데 find_fit()을 사용하는 mm_malloc()에서 힙을 안 갖고있기때문에
-인자로 넘겨 받을 수가 없다. mm_malloc()은 할당해야하는 사이즈만 인자로 가지고 있다.
-
-위 이유는 그냥 갖다 붙이는 이유고 
-책에서는 프롤로그와 에필로그 블록들은 연결과정 동안에 가장자리 조건을 없애주기 위한 속임수로 
-할당기는 한개의 정적(static) 전역변수를 사용하며 이것은 항상 프롤로그 블록을 가르킨다
- */
 static void *heap_listp;
 
 static void *extend_heap(size_t words);
@@ -249,17 +232,6 @@ void *mm_malloc(size_t size)
     }
     place(bp,asize);
     return bp;
-    /* 
-    // 기본으로 주어지는 코드 
-    int newsize = ALIGN(size + SIZE_T_SIZE);
-    void *p = mem_sbrk(newsize);
-    if (p == (void *)-1)
-	return NULL;
-    else {
-        *(size_t *)p = size;
-        return (void *)((char *)p + SIZE_T_SIZE);
-    }
-    */
 }
 
 /* 동적 메모리 할당 시 메모리 블록을 찾는 함수 */
@@ -298,18 +270,28 @@ static void *find_fit(size_t asize)
 /* 가용 블록 중에서 요청한 크기(asize)에 따라 적절한 크기의 블록을 할당하는 함수 */
 static void place(void *bp, size_t asize)
 {
-   delete_block(bp);
-    size_t old_size = GET_SIZE(HDRP(bp));
+    // 할당할 블록(bp)을 가용 블록 리스트에서 삭제
+    delete_block(bp);
+
+    size_t old_size = GET_SIZE(HDRP(bp)); 
+    /*현재 블록(bp)의 크기가 요청한 크기(asize)에 2배의 
+    double word size(DSIZE)를 더한 값보다 큰 경우*/ 
     if (old_size >= asize + (2 * DSIZE)){
+        // 할당할 블록(bp)에 새로운 header와 footer를 할당
         PUT(HDRP(bp), PACK(asize, 1));
         PUT(FTRP(bp), PACK(asize, 1));
-        
+
+        // 나머지 부분에 대한 header와 footer를 할당하여 가용 블록으로 만듦
         PUT(HDRP(NEXT_BLKP(bp)), PACK((old_size - asize), 0));
         PUT(FTRP(NEXT_BLKP(bp)), PACK((old_size - asize), 0));
-        
+
+        // 나머지 부분과 연결되어 있는 블록들과 병합하여 큰 가용 블록으로 만듦
         coalesce(NEXT_BLKP(bp));
     }
     else {
+        /*요청한 크기(asize)가 현재 블록(bp)의 크기와 같거나 더 큰 경우
+        현재 블록(bp)을 모두 할당하고 남은 부분이 없으므로
+        할당할 블록(bp)의 header와 footer를 업데이트하여 할당 완료 상태로 만듦*/
         PUT(HDRP(bp), PACK(old_size, 1));
         PUT(FTRP(bp), PACK(old_size, 1));
     }
@@ -330,33 +312,49 @@ void mm_free(void *bp)
 
     coalesce(bp);
 }
-
+/*
+ * coalesce - 여러 가용 블록을 하나의 블록으로 병합하고, 새로운 블록의 포인터를 반환합니다.
+ *            이 함수는 병합 후에도 블록 리스트에 새로운 블록이 추가되도록 합니다.
+ * 
+ * bp: 병합 대상이 되는 블록의 포인터
+ *
+ * 반환값: 병합 후 생성된 새로운 블록의 포인터
+ */
 static void *coalesce(void *bp)
 {
     size_t prev_alloc = GET_ALLOC(FTRP(PREV_BLKP(bp)));
     size_t next_alloc = GET_ALLOC(HDRP(NEXT_BLKP(bp)));
     size_t size = GET_SIZE(HDRP(bp));
-
+    // 이전 블록은 할당되어 있고, 다음 블록은 가용 상태입니다.
     if (prev_alloc && !next_alloc) {
         size += GET_SIZE(HDRP(NEXT_BLKP(bp)));
-        
+
+        //다음 블록을 리스트에서 삭제합니다.
         delete_block(NEXT_BLKP(bp));
+
+        // 현재 블록의 헤더 정보를 업데이트합니다.
         PUT(HDRP(bp), PACK(size, 0));
+        // 현재 블록의 풋더 정보를 업데이트합니다.
         PUT(FTRP(bp), PACK(size, 0));
     }
+    // 이전 블록은 가용 상태이고, 다음 블록은 할당되어 있습니다.
     else if (!prev_alloc && next_alloc) {
         size += GET_SIZE(HDRP(PREV_BLKP(bp)));
-
+        // 이전 블록을 리스트에서 삭제합니다.
         delete_block(PREV_BLKP(bp));
+        
         PUT(FTRP(bp), PACK(size, 0));
         PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));
+        // 현재 블록의 포인터를 이전 블록으로 변경합니다.
         bp = PREV_BLKP(bp);
     }
+    // 이전 블록과 다음 블록이 모두 가용 상태입니다.
     else if (!prev_alloc && !next_alloc){
         size += GET_SIZE(HDRP(NEXT_BLKP(bp))) + GET_SIZE(HDRP(PREV_BLKP(bp)));
 
-        delete_block(PREV_BLKP(bp));
-        delete_block(NEXT_BLKP(bp));
+        delete_block(PREV_BLKP(bp));// 이전 블록을 리스트에서 삭제합니다.
+        delete_block(NEXT_BLKP(bp));// 다음 블록을 리스트에서 삭제합니다.
+
         PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));
         PUT(FTRP(NEXT_BLKP(bp)), PACK(size, 0));
         bp = PREV_BLKP(bp);
@@ -379,8 +377,6 @@ static void *coalesce(void *bp)
 6. newptr로 copySize 만큼 데이터를 복사합니다.
 7. oldptr을 free()하고 newptr을 반환합니다. ??
 */
-
-
 /*
  * mm_realloc - Implemented simply in terms of mm_malloc and mm_free
  * mm_realloc - 단순히 mm_malloc과 mm_free를 이용해 구현됩니다.
@@ -419,18 +415,6 @@ void *mm_realloc(void *bp, size_t size)
     // 새로운 블록 주소 반환
     return newptr;
 
-    /*
-    // 기본으로 주어지는 코드
-    newptr = mm_malloc(size);
-    if (newptr == NULL)
-      return NULL;
-    copySize = *(size_t *)((char *)oldptr - SIZE_T_SIZE);
-    if (size < copySize)
-      copySize = size;
-    memcpy(newptr, oldptr, copySize);
-    mm_free(oldptr);
-    return newptr;
-    */
 }
 /* free list에서 블록 포인터 bp를 삭제하는 함수 */
 void delete_block(char* bp)
