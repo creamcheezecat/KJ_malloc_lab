@@ -104,23 +104,6 @@ p는 대개 (void*) 이므로 직접적으로 역참조가 불가능 하다
 /*주어진 블록 포인터(bp)를 이용하여 이전 블록의 주소를 계산*/
 #define PREV_BLKP(bp)   ((char *)(bp) - GET_SIZE(((char *)(bp) - DSIZE)))
 
-/* 
-heap_listp 변수는 포인터 변수로, 할당된 힙 메모리 블록의 시작 주소를 가리켜야 합니다. 
-따라서, void* 자료형을 사용하여 선언하는 것이 적절합니다.
-
-void* 자료형은 어떤 타입의 주소도 가리킬 수 있는 범용 포인터이기 때문에 
-heap_listp 변수가 가리키는 메모리 블록이 어떤 타입인지에 대해서는 신경쓰지 않아도 됩니다. 
-따라서 heap_listp 변수를 void* 자료형으로 선언하여
-포인터가 가리키는 메모리 블록의 주소를 저장하도록 하는 것이 좋습니다.
-
-전역 변수로 사용 해야하는 이유
-find_fit()함수에서 힙을 불러와야하는데 find_fit()을 사용하는 mm_malloc()에서 힙을 안 갖고있기때문에
-인자로 넘겨 받을 수가 없다. mm_malloc()은 할당해야하는 사이즈만 인자로 가지고 있다.
-
-위 이유는 그냥 갖다 붙이는 이유고 
-책에서는 프롤로그와 에필로그 블록들은 연결과정 동안에 가장자리 조건을 없애주기 위한 속임수로 
-할당기는 한개의 정적(static) 전역변수를 사용하며 이것은 항상 프롤로그 블록을 가르킨다
- */
 static void *heap_listp;
 
 static void *extend_heap(size_t words);
@@ -188,7 +171,6 @@ size 바이트의 메모리 블록을 요청할떄 추가적인 요청들을 체
 할당기는 요청한 블록 크기를 조절해서 헤더와 풋터를 위한 공간을 확보하고,
  더블 워드 요건을 만족시킨다. 
  */
-
 /* 
  * mm_malloc - Allocate a block by incrementing the brk pointer.
  *     Always allocate a block whose size is a multiple of the alignment.
@@ -240,17 +222,7 @@ void *mm_malloc(size_t size)
     }
     place(bp,asize);
     return bp;
-    /* 
-    // 기본으로 주어지는 코드 
-    int newsize = ALIGN(size + SIZE_T_SIZE);
-    void *p = mem_sbrk(newsize);
-    if (p == (void *)-1)
-	return NULL;
-    else {
-        *(size_t *)p = size;
-        return (void *)((char *)p + SIZE_T_SIZE);
-    }
-    */
+
 }
 
 /*
@@ -366,8 +338,6 @@ static void *coalesce(void *bp)
 6. newptr로 copySize 만큼 데이터를 복사합니다.
 7. oldptr을 free()하고 newptr을 반환합니다. ??
 */
-
-
 /*
  * mm_realloc - Implemented simply in terms of mm_malloc and mm_free
  * mm_realloc - 단순히 mm_malloc과 mm_free를 이용해 구현됩니다.
@@ -406,16 +376,4 @@ void *mm_realloc(void *bp, size_t size)
     // 새로운 블록 주소 반환
     return newptr;
 
-    /*
-    // 기본으로 주어지는 코드
-    newptr = mm_malloc(size);
-    if (newptr == NULL)
-      return NULL;
-    copySize = *(size_t *)((char *)oldptr - SIZE_T_SIZE);
-    if (size < copySize)
-      copySize = size;
-    memcpy(newptr, oldptr, copySize);
-    mm_free(oldptr);
-    return newptr;
-    */
 }
