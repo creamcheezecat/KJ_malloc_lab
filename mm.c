@@ -146,8 +146,8 @@ int mm_init(void)
     PUT(heap_listp, 0);                             /* Alignment padding */
     PUT(heap_listp + (1 * WSIZE), PACK(DSIZE*2,1));   /* Prologue header */
 
-    PUT(heap_listp + (2 * WSIZE), (int)NULL);   /* 프롤로그 PREC 포인터 NULL로 초기화 */
-    PUT(heap_listp + (3 * WSIZE), (int)NULL);   /* 프롤로그 SUCC 포인터 NULL로 초기화 */
+    PUT(heap_listp + (2 * WSIZE), (int)NULL);   /* 프롤로그 SUCC 포인터 NULL로 초기화 */
+    PUT(heap_listp + (3 * WSIZE), (int)NULL);   /* 프롤로그 PREC 포인터 NULL로 초기화 */
 
     PUT(heap_listp + (4 * WSIZE), PACK(DSIZE*2,1));   /* Prologue footer */
     PUT(heap_listp + (5 * WSIZE), PACK(0,1));       /* Epilogue header */
