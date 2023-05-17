@@ -129,7 +129,7 @@ static void *extend_heap(size_t words)
     PUT(HDRP(bp), PACK(size, 0));           /* Free block header */ /* 새 가용 블록 헤더 */
     PUT(FTRP(bp), PACK(size, 0));           /* Free block footer */
     PUT(HDRP(NEXT_BLKP(bp)),PACK(0, 1));    /* New epilogue header */ /* 새 에필로그 블록 헤더*/
-
+    
     /*이전 블록이 프리 블록(free block)인 경우, 병합(coalesce)을 수행*/
     return coalesce(bp);
 }
@@ -358,24 +358,13 @@ void *mm_realloc(void *bp, size_t size)
     void *newptr;
     size_t copySize;
 
-    /* size가 0이면 free와 같음 */
-    if(size == 0){
-        mm_free(bp);
-        return NULL;
-    }
-
-    /* bp이 NULL이면 malloc과 같음 */
-    if(bp == NULL){
-        return mm_malloc(size);
-    }
-
     newptr = mm_malloc(size);
 
     if(newptr == NULL){
         return NULL;
     }
     // 복사할 데이터 크기 결정
-    copySize = GET_SIZE(HDRP(oldptr)) - DSIZE;
+    copySize = GET_SIZE(HDRP(oldptr));
     if(size < copySize){
         copySize = size;
     }
